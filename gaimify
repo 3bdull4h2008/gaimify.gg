@@ -1,0 +1,195 @@
+import sys
+import json
+import os
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QPushButton, QMessageBox, QFileDialog, QTabWidget, QGridLayout, QAction
+)
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtCore import QTimer, QUrl
+
+class GamifyApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Gamify")
+        self.setGeometry(100, 100, 800, 600)
+
+        # Initialize the login screen
+        self.show_login_screen()
+
+    def show_login_screen(self):
+        """Show the login screen."""
+        self.login_widget = QWidget()
+        layout = QVBoxLayout()
+
+        # Title
+        title = QLabel("Login to Gamify")
+        title.setStyleSheet("font-size: 24px; color: #0D47A1;")
+        layout.addWidget(title)
+
+        # Email input
+        self.email_input = QLineEdit()
+        self.email_input.setPlaceholderText("Enter your email")
+        layout.addWidget(self.email_input)
+
+        # Password input
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Enter your password")
+        self.password_input.setEchoMode(QLineEdit.Password)
+        layout.addWidget(self.password_input)
+
+        # Login button
+        login_button = QPushButton("Login")
+        login_button.setStyleSheet("background-color: #0D47A1; color: white; font-size: 18px;")
+        login_button.clicked.connect(self.login)
+        layout.addWidget(login_button)
+
+        # Create account button
+        create_account_button = QPushButton("Create Account")
+        create_account_button.setStyleSheet("background-color: #0D47A1; color: white; font-size: 18px;")
+        create_account_button.clicked.connect(self.create_account)
+        layout.addWidget(create_account_button)
+
+        self.login_widget.setLayout(layout)
+        self.setCentralWidget(self.login_widget)
+
+    def login(self):
+        """Handle user login."""
+        email = self.email_input.text()
+        password = self.password_input.text()
+
+        if self.validate_user(email, password):
+            QMessageBox.information(self, "Success", "Login successful!")
+            self.show_home_screen()
+        else:
+            QMessageBox.warning(self, "Error", "Invalid email or password!")
+
+    def create_account(self):
+        """Handle account creation."""
+        email = self.email_input.text()
+        password = self.password_input.text()
+
+        if self.save_user(email, password):
+            QMessageBox.information(self, "Success", "Account created successfully!")
+        else:
+            QMessageBox.warning(self, "Error", "Email already exists!")
+
+    def validate_user(self, email, password):
+        """Validate user credentials."""
+        if not os.path.exists('users.json'):
+            return False
+        with open('users.json', 'r') as file:
+            users = json.load(file)
+        return users.get(email) == password
+
+    def save_user(self, email, password):
+        """Save new user to the database."""
+        if not os.path.exists('users.json'):
+            users = {}
+        else:
+            with open('users.json', 'r') as file:
+                users = json.load(file)
+        if email in users:
+            return False
+        users[email] = password
+        with open('users.json', 'w') as file:
+            json.dump(users, file)
+        return True
+
+    def show_home_screen(self):
+        """Show the home screen with web content and tabs."""
+        self.home_widget = QTabWidget()
+
+        # Web view tab
+        web_view = QWebEngineView()
+        web_view.setUrl(QUrl("https://gaimify8.godaddysites.com/"))
+        self.home_widget.addTab(web_view, "Home")
+
+        # Timer tab
+        timer_widget = QWidget()
+        timer_layout = QVBoxLayout()
+
+        self.timer_input = QLineEdit()
+        self.timer_input.setPlaceholderText("Enter time in minutes")
+        timer_layout.addWidget(self.timer_input)
+
+        start_timer_button = QPushButton("Start Timer")
+        start_timer_button.clicked.connect(self.start_timer)
+        timer_layout.addWidget(start_timer_button)
+
+        timer_widget.setLayout(timer_layout)
+        self.home_widget.addTab(timer_widget, "Timer")
+
+        # Account tab
+        account_widget = QWidget()
+        account_layout = QVBoxLayout()
+
+        account_layout.addWidget(QLabel("Name: John Doe"))
+        account_layout.addWidget(QLabel("Email: john.doe@example.com"))
+
+        change_password_button = QPushButton("Change Password")
+        change_password_button.clicked.connect(self.change_password)
+        account_layout.addWidget(change_password_button)
+
+        account_widget.setLayout(account_layout)
+        self.home_widget.addTab(account_widget, "Account")
+
+        self.setCentralWidget(self.home_widget)
+
+    def start_timer(self):
+        """Start the timer."""
+        try:
+            time = int(self.timer_input.text())
+            if time > 0:
+                QMessageBox.information(self, "Timer", f"Timer set for {time} minutes.")
+                QTimer.singleShot(time * 60 * 1000, self.timer_finished)
+            else:
+                QMessageBox.warning(self, "Error", "Please enter a valid time!")
+        except ValueError:
+            QMessageBox.warning(self, "Error", "Please enter a numeric value!")
+
+    def timer_finished(self):
+        """Handle timer completion."""
+        QMessageBox.information(self, "Timer", "Time's up!")
+
+    def change_password(self):
+        """Handle password change."""
+        dialog = QWidget()
+        dialog.setWindowTitle("Change Password")
+        layout = QVBoxLayout()
+
+        old_password = QLineEdit()
+        old_password.setPlaceholderText("Old Password")
+        old_password.setEchoMode(QLineEdit.Password)
+        layout.addWidget(old_password)
+
+        new_password = QLineEdit()
+        new_password.setPlaceholderText("New Password")
+        new_password.setEchoMode(QLineEdit.Password)
+        layout.addWidget(new_password)
+
+        confirm_password = QLineEdit()
+        confirm_password.setPlaceholderText("Confirm New Password")
+        confirm_password.setEchoMode(QLineEdit.Password)
+        layout.addWidget(confirm_password)
+
+        submit_button = QPushButton("Submit")
+        submit_button.clicked.connect(lambda: self.update_password(
+            old_password.text(), new_password.text(), confirm_password.text()))
+        layout.addWidget(submit_button)
+
+        dialog.setLayout(layout)
+        dialog.show()
+
+    def update_password(self, old_password, new_password, confirm_password):
+        """Update user password."""
+        if new_password == confirm_password:
+            QMessageBox.information(self, "Success", "Password changed successfully!")
+        else:
+            QMessageBox.warning(self, "Error", "Passwords do not match!")
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = GamifyApp()
+    window.show()
+    sys.exit(app.exec_())
